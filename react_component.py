@@ -5,79 +5,67 @@ from collections import OrderedDict
 
 
 COMPONENT_TYPES = OrderedDict()
-COMPONENT_TYPES['Functional Component with Implicit Return'] = \
-    """import React from 'react';
-
-%(style_import)s
-
-
-const %(name)s = props => (
-  <React.Fragment></React.Fragment>
-);
-
-export default %(name)s;
-"""
 COMPONENT_TYPES['Functional Component with Return Statement'] = \
     """import React from 'react';
-
+import PropTypes from 'prop-types';
 %(style_import)s
 
-
-const %(name)s = props => {
+const %(name)s = (props) => {
   return (
-    <React.Fragment></React.Fragment>
+    <div></div>
   );
 };
 
+%(name)s.propTypes = {};
+
+%(name)s.defaultProps = {};
+
 export default %(name)s;
 """
-COMPONENT_TYPES['Class Component with Constructor'] = \
-    """import React, { Component } from 'react';
-
+COMPONENT_TYPES['Functional Component with Implicit Return'] = \
+    """import React from 'react';
+import PropTypes from 'prop-types';
 %(style_import)s
 
+const %(name)s = (props) => (
+  <div></div>
+);
 
-class %(name)s extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {};
-  }
+%(name)s.propTypes = {};
 
-  render() {
-    return (
-      <React.Fragment></React.Fragment>
-    );
-  }
-}
+%(name)s.defaultProps = {};
 
 export default %(name)s;
+
 """
-COMPONENT_TYPES['Class Component without Constructor'] = \
-    """import React, { Component } from 'react';
 
-%(style_import)s
-
-
-class %(name)s extends Component {
-  render() {
-    return (
-      <React.Fragment></React.Fragment>
-    );
-  }
-}
-
-export default %(name)s;
-"""
 
 STYLE_TYPES = OrderedDict()
-STYLE_TYPES['CSS'] = '.css'
 STYLE_TYPES['SCSS'] = '.scss'
+STYLE_TYPES['CSS'] = '.css'
 STYLE_TYPES['SASS'] = '.sass'
 STYLE_TYPES['LESS'] = '.less'
 
 CSS_MODULES_TYPES = OrderedDict()
 CSS_MODULES_TYPES['Use CSS Modules (.module.) for stylesheet'] = '.module'
 CSS_MODULES_TYPES['No CSS Modules'] = ''
+
+TEST_FILE = """import React from 'react';
+import { shallow } from 'enzyme';
+import %(name)s from './%(name)s';
+
+describe('<%(name)s />', () => {
+  let component;
+
+  beforeEach(() => {
+    component = shallow(<%(name)s />);
+  });
+
+  test('It should mount', () => {
+    expect(component.length).toBe(1);
+  });
+});
+"""
 
 
 class ReactCreateComponentCommand(sublime_plugin.WindowCommand):
@@ -156,17 +144,26 @@ class ReactCreateComponentCommand(sublime_plugin.WindowCommand):
         new_dir = os.path.join(self._path, name)
         if not os.path.exists(new_dir):
             os.makedirs(new_dir)
-            index_name = 'index.js'
-            stylesheet_name = 'styles%s%s' % (self._css_modules, self._style)
+            index_name = '%s.js' % name
+            stylesheet_name = '%s%s%s' % (name, self._css_modules, self._style)
             style_import = 'import \'./%s\';' % stylesheet_name
+            test_name = '%s.test.js' % name
             if self._css_modules:
                 style_import = 'import styles from \'./%s\';' % stylesheet_name
             open(os.path.join(new_dir, stylesheet_name), 'w').close()
-            open(os.path.join(new_dir, index_name), 'w').write(
+            js_file = open(os.path.join(new_dir, index_name), 'w')
+            js_file.write(
                 self._content % {
                     'name': name,
                     'style_import': style_import,
-                }).close()
+                })
+            js_file.close()
+            test_file = open(os.path.join(new_dir, test_name), 'w')
+            test_file.write(
+                TEST_FILE % {
+                    'name': name,
+                })
+            test_file.close()
         else:
             sublime.error_message(
                 'Unable to create component: "%s" already exists.' % name)
